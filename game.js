@@ -103,6 +103,31 @@ class GameScene extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
+    // Added: Number keys (1-9) for bomb placement with custom fire range.
+    this.numKeys = this.input.keyboard.addKeys({
+      one: Phaser.Input.Keyboard.KeyCodes.ONE,
+      two: Phaser.Input.Keyboard.KeyCodes.TWO,
+      three: Phaser.Input.Keyboard.KeyCodes.THREE,
+      four: Phaser.Input.Keyboard.KeyCodes.FOUR,
+      five: Phaser.Input.Keyboard.KeyCodes.FIVE,
+      six: Phaser.Input.Keyboard.KeyCodes.SIX,
+      seven: Phaser.Input.Keyboard.KeyCodes.SEVEN,
+      eight: Phaser.Input.Keyboard.KeyCodes.EIGHT,
+      nine: Phaser.Input.Keyboard.KeyCodes.NINE
+    });
+    
+    this.numberToFireRange = {
+      one: 1,
+      two: 2,
+      three: 3,
+      four: 4,
+      five: 5,
+      six: 6,
+      seven: 7,
+      eight: 8,
+      nine: 9
+    };
+
     // Keep track of bombs dropped
     this.bombs = [];
   }
@@ -122,23 +147,18 @@ class GameScene extends Phaser.Scene {
       }
 
       if (direction !== null) {
-          // Determine current grid cell based on player center
           let currentCol = Math.floor(this.player.x / tileSize);
           let currentRow = Math.floor(this.player.y / tileSize);
           let newCol = currentCol + direction.dx;
           let newRow = currentRow + direction.dy;
 
-          // Check grid boundaries
           if (newCol < 0 || newCol >= gridCols || newRow < 0 || newRow >= gridRows) {
-              // Invalid move – do nothing.
+              // Invalid move.
           } else if (this.level[newRow][newCol] !== 0) {
-              // The destination cell is not empty, so player's move is blocked.
+              // Blocked move.
           } else {
-              // Calculate target center position of destination cell
               let targetX = newCol * tileSize + tileSize / 2;
               let targetY = newRow * tileSize + tileSize / 2;
-
-              // Mark the player as moving and tween to the destination cell
               this.player.moving = true;
               this.tweens.add({
                   targets: this.player,
@@ -153,13 +173,22 @@ class GameScene extends Phaser.Scene {
       }
     }
 
-    // --- Bomb Placement ---
+    // --- Bomb Placement via Number Keys ---
+    for (let key in this.numKeys) {
+      if (Phaser.Input.Keyboard.JustDown(this.numKeys[key])) {
+        let fireRange = this.numberToFireRange[key];
+        this.placeBomb(fireRange);
+        break; // Only process one bomb placement per frame.
+      }
+    }
+
+    // --- Bomb Placement with Space Key (default fire range = 1) ---
     if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
-      this.placeBomb();
+      this.placeBomb(); 
     }
   }
 
-  placeBomb() {
+  placeBomb(range = 1) {
     // Snap the player's position to the grid cell
     let col = Math.floor(this.player.x / tileSize);
     let row = Math.floor(this.player.y / tileSize);
@@ -172,37 +201,32 @@ class GameScene extends Phaser.Scene {
     bomb.col = col;
     bomb.setImmovable(true);
     
-    // Set default fire range; modify this if you want other ranges.
-    bomb.fireRange = 1;
-    // Create a text object to display the fire range on top of the bomb.
+    // Set the bomb's fire range based on the parameter
+    bomb.fireRange = range;
+    // Create text to display the fire range on top of the bomb.
     let fireRangeText = this.add.text(x, y, bomb.fireRange, { font: '16px Arial', fill: '#ffffff' });
     fireRangeText.setOrigin(0.5);
     this.children.bringToTop(fireRangeText);
     bomb.fireRangeText = fireRangeText;
     
     this.bombs.push(bomb);
-    // Store the delayed call ID for potential cancellation
+    // Store the delayed call ID for explosion
     bomb.delayedCallId = this.time.delayedCall(2000, () => {
       this.explodeBomb(bomb);
     }, [], this);
   }
 
   explodeBomb(bomb) {
-    // If the bomb has a pending delayed call, cancel it
     if (bomb.delayedCallId) {
       bomb.delayedCallId.remove();
     }
-
-    // If the bomb isn't in the bombs list, it has already exploded – return early.
     if (!this.bombs.includes(bomb)) return;
-
-    // Immediately remove the bomb from the bombs list to avoid recursive chain reactions.
     this.bombs = this.bombs.filter(b => b !== bomb);
 
     // Create explosion at the bomb's cell
     this.createExplosion(bomb.row, bomb.col);
 
-    // Explosion propagates one tile in each direction
+    // Explosion propagates in each direction based on bomb.fireRange
     const directions = [
       { dx: 0, dy: -1 }, // up
       { dx: 0, dy: 1 },  // down
@@ -211,42 +235,41 @@ class GameScene extends Phaser.Scene {
     ];
 
     directions.forEach(dir => {
-      let r = bomb.row + dir.dy;
-      let c = bomb.col + dir.dx;
-      // Check boundaries of our grid
-      if (r < 0 || r >= gridRows || c < 0 || c >= gridCols) return;
-      // If there's a solid wall, the explosion doesn't go past it
-      if (this.level[r][c] === 1) return;
-      // Create explosion effect in the cell
-      this.createExplosion(r, c);
-      // If a destructible block is present, remove it and update our grid
-      if (this.level[r][c] === 2) {
-        let blocks = this.destructibleGroup.getChildren();
-        for (let i = 0; i < blocks.length; i++) {
-          let blk = blocks[i];
-          let blkRow = Math.floor(blk.y / tileSize);
-          let blkCol = Math.floor(blk.x / tileSize);
-          if (blkRow === r && blkCol === c) {
-            // Disable the block's physics body and hide it, so collisions are removed immediately.
-            blk.disableBody(true, true);
-            break;
+      for (let i = 1; i <= bomb.fireRange; i++) {
+        let r = bomb.row + dir.dy * i;
+        let c = bomb.col + dir.dx * i;
+        // Check grid boundaries
+        if (r < 0 || r >= gridRows || c < 0 || c >= gridCols) break;
+        // Stop propagation if a solid wall is encountered
+        if (this.level[r][c] === 1) break;
+        // Create explosion effect in the cell
+        this.createExplosion(r, c);
+        // Remove destructible block and stop further propagation if hit
+        if (this.level[r][c] === 2) {
+          let blocks = this.destructibleGroup.getChildren();
+          for (let j = 0; j < blocks.length; j++) {
+            let blk = blocks[j];
+            let blkRow = Math.floor(blk.y / tileSize);
+            let blkCol = Math.floor(blk.x / tileSize);
+            if (blkRow === r && blkCol === c) {
+              blk.disableBody(true, true);
+              break;
+            }
           }
+          this.level[r][c] = 0;
+          break;
         }
-        this.level[r][c] = 0;
-      }
-
-      // --- Trigger nearby bombs for chain reactions ---
-      let bombAtCell = this.bombs.find(b => b.row === r && b.col === c);
-      if (bombAtCell) {
-        this.explodeBomb(bombAtCell);
+        // Trigger nearby bombs for chain reactions
+        let bombAtCell = this.bombs.find(b => b.row === r && b.col === c);
+        if (bombAtCell) {
+          this.explodeBomb(bombAtCell);
+        }
       }
     });
 
-    // Destroy the fire range text if it exists.
     if (bomb.fireRangeText) {
       bomb.fireRangeText.destroy();
     }
-    // Remove the bomb sprite (it has already been removed from bombs list)
     bomb.destroy();
   }
 
