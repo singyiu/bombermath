@@ -210,8 +210,10 @@ class GameScene extends Phaser.Scene {
     bomb.fireRangeText = fireRangeText;
     
     this.bombs.push(bomb);
+    // Updated: Calculate explosion delay based on the formula: 2000 + (range-1)*750
+    let explodeBombDelay = 2000 + (range - 1) * 300;
     // Store the delayed call ID for explosion
-    bomb.delayedCallId = this.time.delayedCall(2000, () => {
+    bomb.delayedCallId = this.time.delayedCall(explodeBombDelay, () => {
       this.explodeBomb(bomb);
     }, [], this);
   }
