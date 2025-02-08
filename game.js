@@ -171,6 +171,15 @@ class GameScene extends Phaser.Scene {
     bomb.row = row;
     bomb.col = col;
     bomb.setImmovable(true);
+    
+    // Set default fire range; modify this if you want other ranges.
+    bomb.fireRange = 1;
+    // Create a text object to display the fire range on top of the bomb.
+    let fireRangeText = this.add.text(x, y, bomb.fireRange, { font: '16px Arial', fill: '#ffffff' });
+    fireRangeText.setOrigin(0.5);
+    this.children.bringToTop(fireRangeText);
+    bomb.fireRangeText = fireRangeText;
+    
     this.bombs.push(bomb);
     // Store the delayed call ID for potential cancellation
     bomb.delayedCallId = this.time.delayedCall(2000, () => {
@@ -233,6 +242,10 @@ class GameScene extends Phaser.Scene {
       }
     });
 
+    // Destroy the fire range text if it exists.
+    if (bomb.fireRangeText) {
+      bomb.fireRangeText.destroy();
+    }
     // Remove the bomb sprite (it has already been removed from bombs list)
     bomb.destroy();
   }
