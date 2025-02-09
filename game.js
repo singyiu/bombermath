@@ -70,18 +70,8 @@ class GameScene extends Phaser.Scene {
           this.wallGroup.create(x, y, 'solid');
           this.level[row][col] = 1;
         } else {
-          // Reserve a clear spawn area at top-left: cells (1,1), (1,2), (2,1)
-          if ((row === 1 && col < 3) || (col === 1 && row < 3)) {
-            this.level[row][col] = 0;
-          } else {
-            // Randomly place destructible blocks
-            if (Math.random() < 0.7) {
-              this.destructibleGroup.create(x, y, 'destructible');
-              this.level[row][col] = 2;
-            } else {
-              this.level[row][col] = 0;
-            }
-          }
+          // Removed destructible blocks: all cells remain empty.
+          this.level[row][col] = 0;
         }
       }
     }
