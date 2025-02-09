@@ -45,6 +45,12 @@ class GameScene extends Phaser.Scene {
       .fillCircle(tileSize / 2, tileSize / 2, tileSize / 2)
       .generateTexture('explosion', tileSize, tileSize);
 
+    // Monster texture (purple square)
+    this.make.graphics({ x: 0, y: 0, add: false })
+      .fillStyle(0x800080, 1)
+      .fillRect(0, 0, tileSize, tileSize)
+      .generateTexture('monster', tileSize, tileSize);
+
     // --- Create the level grid ---
     // We'll store the grid in a 2D array:
     // 0 = empty, 1 = solid wall, 2 = destructible block
@@ -120,6 +126,20 @@ class GameScene extends Phaser.Scene {
 
     // Keep track of bombs dropped
     this.bombs = [];
+    
+    // --- Create Monster ---
+    // Spawn monster at cell (gridRows-2, gridCols-2)
+    this.monster = this.physics.add.sprite((gridCols - 2) * tileSize + tileSize / 2, (gridRows - 2) * tileSize + tileSize / 2, 'monster');
+    this.monster.setCollideWorldBounds(true);
+    this.monster.moving = false;
+    
+    // Schedule monster movement every 1000ms
+    this.monsterTimer = this.time.addEvent({
+      delay: 1000,
+      callback: this.moveMonster,
+      callbackScope: this,
+      loop: true
+    });
   }
 
   update(time, delta) {
@@ -302,6 +322,61 @@ class GameScene extends Phaser.Scene {
     if (playerRow === row && playerCol === col) {
       console.log('Player hit by explosion!');
       this.scene.restart();
+    }
+  }
+
+  moveMonster() {
+    if (!this.monster || this.monster.moving) return;
+
+    let monsterCol = Math.floor(this.monster.x / tileSize);
+    let monsterRow = Math.floor(this.monster.y / tileSize);
+    let playerCol = Math.floor(this.player.x / tileSize);
+    let playerRow = Math.floor(this.player.y / tileSize);
+
+    let diffCol = playerCol - monsterCol;
+    let diffRow = playerRow - monsterRow;
+
+    // Determine preferred move order: try the direction with the larger difference first
+    let moves = [];
+    if (Math.abs(diffCol) >= Math.abs(diffRow)) {
+      if (diffCol !== 0) moves.push({ dx: Math.sign(diffCol), dy: 0 });
+      if (diffRow !== 0) moves.push({ dx: 0, dy: Math.sign(diffRow) });
+    } else {
+      if (diffRow !== 0) moves.push({ dx: 0, dy: Math.sign(diffRow) });
+      if (diffCol !== 0) moves.push({ dx: Math.sign(diffCol), dy: 0 });
+    }
+    
+    let chosenMove = null;
+    for (let move of moves) {
+      let newCol = monsterCol + move.dx;
+      let newRow = monsterRow + move.dy;
+      // Check grid boundaries and that the cell is empty (level cell value 0)
+      if (newCol < 0 || newCol >= gridCols || newRow < 0 || newRow >= gridRows) continue;
+      if (this.level[newRow][newCol] !== 0) continue;
+      chosenMove = move;
+      break;
+    }
+
+    if (chosenMove) {
+      let targetX = (monsterCol + chosenMove.dx) * tileSize + tileSize / 2;
+      let targetY = (monsterRow + chosenMove.dy) * tileSize + tileSize / 2;
+      this.monster.moving = true;
+      this.tweens.add({
+        targets: this.monster,
+        x: targetX,
+        y: targetY,
+        duration: 150,
+        onComplete: () => {
+          this.monster.moving = false;
+          // Check if the monster has reached the player's cell
+          let newMonsterCol = Math.floor(this.monster.x / tileSize);
+          let newMonsterRow = Math.floor(this.monster.y / tileSize);
+          if (newMonsterRow === playerRow && newMonsterCol === playerCol) {
+            console.log('Player caught by monster!');
+            this.scene.restart();
+          }
+        }
+      });
     }
   }
 }
