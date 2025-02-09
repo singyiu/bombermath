@@ -12,6 +12,14 @@ class GameScene extends Phaser.Scene {
     this.monsterMoveDelay = 1000;
   }
 
+  // Added: Reset level variables upon scene restart.
+  init() {
+    this.gameLevel = 1;
+    this.successCnt = 0;
+    this.monsterLevel = 1;
+    this.monsterMoveDelay = 1000;
+  }
+
   preload() {
     // No external assets are loaded.
   }
