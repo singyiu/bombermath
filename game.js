@@ -129,9 +129,18 @@ class GameScene extends Phaser.Scene {
     
     // --- Create Monster ---
     // Spawn monster at cell (gridRows-2, gridCols-2)
-    this.monster = this.physics.add.sprite((gridCols - 2) * tileSize + tileSize / 2, (gridRows - 2) * tileSize + tileSize / 2, 'monster');
+    this.monster = this.physics.add.sprite(
+      (gridCols - 2) * tileSize + tileSize / 2,
+      (gridRows - 2) * tileSize + tileSize / 2,
+      'monster'
+    );
     this.monster.setCollideWorldBounds(true);
     this.monster.moving = false;
+    // Assign a random non-prime integer between 1 and 98 to the monster using generateNonPrime()
+    this.monster.value = this.generateNonPrime();
+    // Display the number on the monster's sprite
+    this.monsterText = this.add.text(this.monster.x, this.monster.y, this.monster.value, { font: '16px Arial', fill: '#ffffff' });
+    this.monsterText.setOrigin(0.5);
     
     // Schedule monster movement every 1000ms
     this.monsterTimer = this.time.addEvent({
@@ -195,6 +204,11 @@ class GameScene extends Phaser.Scene {
     // --- Bomb Placement with Space Key (default fire range = 1) ---
     if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
       this.placeBomb(); 
+    }
+
+    // Update the position of the monster's text to follow the monster sprite.
+    if (this.monster && this.monsterText) {
+      this.monsterText.setPosition(this.monster.x, this.monster.y);
     }
   }
 
@@ -378,6 +392,25 @@ class GameScene extends Phaser.Scene {
         }
       });
     }
+  }
+
+  // Helper method to determine if a number is prime.
+  isPrime(num) {
+    if (num <= 1) return false;
+    for (let i = 2; i <= Math.sqrt(num); i++) {
+      if (num % i === 0) return false;
+    }
+    return true;
+  }
+
+  // Generates a random integer between 1 and 98 and returns it if it's not prime,
+  // otherwise recursively generate a new number.
+  generateNonPrime() {
+    let rnd = Phaser.Math.Between(1, 98);
+    if (this.isPrime(rnd)) {
+      return this.generateNonPrime();
+    }
+    return rnd;
   }
 }
 
