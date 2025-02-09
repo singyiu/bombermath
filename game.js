@@ -7,6 +7,7 @@ class GameScene extends Phaser.Scene {
   constructor() {
     super({ key: 'GameScene' });
     this.gameLevel = 1; // Added gameLevel variable with default value 1.
+    this.successCnt = 0; // Added successCnt variable with default value 0.
   }
 
   preload() {
@@ -14,8 +15,8 @@ class GameScene extends Phaser.Scene {
   }
 
   create() {
-    // Added level text at the top of the game.
-    this.levelText = this.add.text(10, 10, "Level: " + this.gameLevel, { font: '16px Arial', fill: '#ffffff' });
+    // Updated: Display level and success count at the top of the game.
+    this.levelText = this.add.text(10, 10, "Level: " + this.gameLevel + "  Success: " + this.successCnt, { font: '16px Arial', fill: '#ffffff' });
     this.levelText.setDepth(1000);
   
     // --- Create custom textures using Phaser Graphics ---
@@ -351,6 +352,10 @@ class GameScene extends Phaser.Scene {
           }
           this.monster.destroy();
           this.monster = null;
+          // Increment success count since the monster was destroyed.
+          this.successCnt += 1;
+          // Update the UI text to reflect the new success count.
+          this.levelText.setText("Level: " + this.gameLevel + "  Success: " + this.successCnt);
           // Spawn a new monster one second after destruction.
           this.time.delayedCall(1000, () => {
             this.spawnMonster();
