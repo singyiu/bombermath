@@ -218,15 +218,27 @@ class GameScene extends Phaser.Scene {
     }, [], this);
   }
 
-  explodeBomb(bomb) {
+  explodeBomb(bomb, chainData) {
+    // Remove any pending explosion delayed call.
     if (bomb.delayedCallId) {
       bomb.delayedCallId.remove();
     }
+    // If bomb already exploded, skip.
     if (!this.bombs.includes(bomb)) return;
+
+    // If no chainData is passed, initialize it with the current bomb's fire range.
+    // Otherwise, add the current bomb's fire range to the running total.
+    if (!chainData) {
+      chainData = { product: bomb.fireRange };
+    } else {
+      chainData.product = chainData.product * bomb.fireRange;
+    }
+
+    // Remove bomb from active bombs.
     this.bombs = this.bombs.filter(b => b !== bomb);
 
-    // Create explosion at the bomb's cell
-    this.createExplosion(bomb.row, bomb.col);
+    // --- Create explosion at the bomb's cell with the cumulative chain product ---
+    this.createExplosion(bomb.row, bomb.col, chainData.product);
 
     // Explosion propagates in each direction based on bomb.fireRange
     const directions = [
@@ -244,9 +256,9 @@ class GameScene extends Phaser.Scene {
         if (r < 0 || r >= gridRows || c < 0 || c >= gridCols) break;
         // Stop propagation if a solid wall is encountered
         if (this.level[r][c] === 1) break;
-        // Create explosion effect in the cell
-        this.createExplosion(r, c);
-        // Remove destructible block and stop further propagation if hit
+        // Create explosion effect in the cell with the current chain product value.
+        this.createExplosion(r, c, chainData.product);
+        // Remove destructible block and stop further propagation if hit.
         if (this.level[r][c] === 2) {
           let blocks = this.destructibleGroup.getChildren();
           for (let j = 0; j < blocks.length; j++) {
@@ -261,10 +273,11 @@ class GameScene extends Phaser.Scene {
           this.level[r][c] = 0;
           break;
         }
-        // Trigger nearby bombs for chain reactions
+        // Trigger chain reaction: if another bomb is found at this cell.
         let bombAtCell = this.bombs.find(b => b.row === r && b.col === c);
         if (bombAtCell) {
-          this.explodeBomb(bombAtCell);
+          this.explodeBomb(bombAtCell, chainData);
+          break;
         }
       }
     });
@@ -275,15 +288,25 @@ class GameScene extends Phaser.Scene {
     bomb.destroy();
   }
 
-  createExplosion(row, col) {
+  createExplosion(row, col, chainValue) {
     let x = col * tileSize + tileSize / 2;
     let y = row * tileSize + tileSize / 2;
     let explosion = this.add.sprite(x, y, 'explosion');
     // Remove the explosion after a brief moment (300ms)
-    this.time.delayedCall(300, () => {
+    this.time.delayedCall(500, () => {
       explosion.destroy();
     }, [], this);
-    // Check if the explosion hit the player – if so, restart the scene
+
+    // Display chainValue on the explosion (if provided)
+    if (chainValue !== undefined) {
+      let explosionText = this.add.text(x, y, chainValue, { font: '16px Arial', fill: '#ffffff' });
+      explosionText.setOrigin(0.5);
+      this.time.delayedCall(500, () => {
+        explosionText.destroy();
+      }, [], this);
+    }
+
+    // Check if the explosion hit the player – if so, restart the scene.
     let playerRow = Math.floor(this.player.y / tileSize);
     let playerCol = Math.floor(this.player.x / tileSize);
     if (playerRow === row && playerCol === col) {
