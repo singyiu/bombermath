@@ -6,18 +6,24 @@ const gridRows = 13;
 class GameScene extends Phaser.Scene {
   constructor() {
     super({ key: 'GameScene' });
-    this.gameLevel = 1; // Added gameLevel variable with default value 1.
-    this.successCnt = 0; // Added successCnt variable with default value 0.
-    this.monsterLevel = 1;
-    this.monsterMoveDelay = 1000;
-  }
-
-  // Added: Reset level variables upon scene restart.
-  init() {
     this.gameLevel = 1;
     this.successCnt = 0;
     this.monsterLevel = 1;
     this.monsterMoveDelay = 1000;
+    this.playerLives = 4;
+  }
+
+  // Added: Reset level variables upon scene restart.
+  init() {
+    if (this.playerLives <= 1) {
+      this.gameLevel = 1;
+      this.successCnt = 0;
+      this.monsterLevel = 1;
+      this.monsterMoveDelay = 1000;
+      this.playerLives = 3;
+    } else {
+      this.playerLives -= 1;
+    }
   }
 
   preload() {
@@ -26,7 +32,7 @@ class GameScene extends Phaser.Scene {
 
   create() {
     // Updated: Display level and success count at the top of the game.
-    this.levelText = this.add.text(10, 10, "Level: " + this.gameLevel + "  Success: " + this.successCnt, { font: '16px Arial', fill: '#ffffff' });
+    this.levelText = this.add.text(10, 10, "Level: " + this.gameLevel + "  Score: " + this.successCnt, { font: '16px Arial', fill: '#ffffff' });
     this.levelText.setDepth(1000);
   
     // --- Create custom textures using Phaser Graphics ---
@@ -66,6 +72,31 @@ class GameScene extends Phaser.Scene {
       .fillStyle(0x800080, 1)
       .fillRect(0, 0, tileSize, tileSize)
       .generateTexture('monster', tileSize, tileSize);
+
+    // --- Modified: Create smaller Heart texture for player lives ---
+    let heartGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+    heartGraphics.fillStyle(0xff0000, 1);
+    // Draw two circles for the top of the heart (smaller)
+    heartGraphics.fillCircle(4, 4, 4);
+    heartGraphics.fillCircle(12, 4, 4);
+    // Draw a triangle for the bottom of the heart (smaller)
+    heartGraphics.fillTriangle(0, 4, 16, 4, 8, 16);
+    heartGraphics.generateTexture('heart', 16, 16);
+
+    // --- Modified: Display player lives as heart icons in the top right corner using smaller heart icons ---
+    this.playerHearts = [];
+    const marginRight = 10;
+    const marginTop = 10;
+    const heartSpacing = 5; // Spacing between each heart
+    for (let i = 0; i < this.playerLives; i++) {
+      // Compute x position so the hearts align from the right edge inward.
+      let x = this.cameras.main.width - marginRight - (16 + heartSpacing) * i - 16;
+      let y = marginTop;
+      let heart = this.add.image(x, y, 'heart');
+      heart.setOrigin(0, 0);
+      heart.setDepth(1000);
+      this.playerHearts.push(heart);
+    }
 
     // --- Create the level grid ---
     // We'll store the grid in a 2D array:
@@ -245,8 +276,8 @@ class GameScene extends Phaser.Scene {
     bomb.fireRangeText = fireRangeText;
     
     this.bombs.push(bomb);
-    // Updated: Calculate explosion delay based on the formula: 2000 + (range-1)*750
-    let explodeBombDelay = 2000 + (range - 1) * 300;
+    // Updated: Calculate explosion delay based on the formula
+    let explodeBombDelay = 3000 + (range - 1) * 100;
     // Store the delayed call ID for explosion
     bomb.delayedCallId = this.time.delayedCall(explodeBombDelay, () => {
       this.explodeBomb(bomb);
@@ -346,7 +377,9 @@ class GameScene extends Phaser.Scene {
     let playerCol = Math.floor(this.player.x / tileSize);
     if (playerRow === row && playerCol === col) {
       console.log('Player hit by explosion!');
-      this.scene.restart();
+      this.time.delayedCall(500, () => {
+        this.scene.restart();
+      }, [], this);
     }
 
     // --- New: Check if the explosion hit the monster ---
@@ -365,7 +398,7 @@ class GameScene extends Phaser.Scene {
           // Increment success count since the monster was destroyed.
           this.successCnt += 1;
           // Update the UI text to reflect the new success count.
-          this.levelText.setText("Level: " + this.gameLevel + "  Success: " + this.successCnt);
+          this.levelText.setText("Level: " + this.gameLevel + "  Score: " + this.successCnt);
           this.updateToNextLevelIfNeeded();
           // Spawn a new monster one second after destruction.
           this.time.delayedCall(1000, () => {
@@ -455,8 +488,7 @@ class GameScene extends Phaser.Scene {
   }
 
   getNextGameLevelSuccessCntTarget(currentLevel) {
-    if (currentLevel === 1) return 3;
-    return currentLevel * 10;
+    return currentLevel * 2;
   }
 
   // --- New: Helper method to update to the next level if needed ---
@@ -464,9 +496,9 @@ class GameScene extends Phaser.Scene {
     let nextGameLevelSuccessCntTarget = this.getNextGameLevelSuccessCntTarget(this.gameLevel);
     if (this.successCnt >= nextGameLevelSuccessCntTarget) {
       this.gameLevel += 1;
-      this.levelText.setText("Level: " + this.gameLevel + "  Success: " + this.successCnt);
+      this.levelText.setText("Level: " + this.gameLevel + "  Score: " + this.successCnt);
 
-      this.monsterMoveDelay -= 50;
+      this.monsterMoveDelay -= 80;
       if ((this.gameLevel === 2) || (this.gameLevel === 11) || (this.gameLevel === 21)) {
         this.monsterLevel += 1;
         this.monsterMoveDelay = 1000;
