@@ -316,7 +316,7 @@ class GameScene extends Phaser.Scene {
     let x = col * tileSize + tileSize / 2;
     let y = row * tileSize + tileSize / 2;
     let explosion = this.add.sprite(x, y, 'explosion');
-    // Remove the explosion after a brief moment (300ms)
+    // Remove the explosion after a brief moment (500ms)
     this.time.delayedCall(500, () => {
       explosion.destroy();
     }, [], this);
@@ -336,6 +336,23 @@ class GameScene extends Phaser.Scene {
     if (playerRow === row && playerCol === col) {
       console.log('Player hit by explosion!');
       this.scene.restart();
+    }
+
+    // --- New: Check if the explosion hit the monster ---
+    if (this.monster) {
+      let monsterRow = Math.floor(this.monster.y / tileSize);
+      let monsterCol = Math.floor(this.monster.x / tileSize);
+      if (monsterRow === row && monsterCol === col) {
+        // Only destroy the monster if the chainValue matches its value.
+        if (chainValue === this.monster.value) {
+          console.log('Monster hit by explosion with matching value! Destroying monster.');
+          if (this.monsterText) {
+            this.monsterText.destroy();
+          }
+          this.monster.destroy();
+          this.monster = null;
+        }
+      }
     }
   }
 
@@ -381,13 +398,15 @@ class GameScene extends Phaser.Scene {
         y: targetY,
         duration: 150,
         onComplete: () => {
-          this.monster.moving = false;
-          // Check if the monster has reached the player's cell
-          let newMonsterCol = Math.floor(this.monster.x / tileSize);
-          let newMonsterRow = Math.floor(this.monster.y / tileSize);
-          if (newMonsterRow === playerRow && newMonsterCol === playerCol) {
-            console.log('Player caught by monster!');
-            this.scene.restart();
+          if (this.monster) {
+            this.monster.moving = false;
+            // Check if the monster has reached the player's cell
+            let newMonsterCol = Math.floor(this.monster.x / tileSize);
+            let newMonsterRow = Math.floor(this.monster.y / tileSize);
+            if (newMonsterRow === playerRow && newMonsterCol === playerCol) {
+              console.log('Player caught by monster!');
+              this.scene.restart();
+            }
           }
         }
       });
