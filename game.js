@@ -166,6 +166,10 @@ class GameScene extends Phaser.Scene {
               // Blocked move.
           } else if (this.bombs.some(b => b.row === newRow && b.col === newCol)) {
               // Blocked move: There's a bomb in the target cell.
+          } else if (this.monster && 
+                     Math.floor(this.monster.x / tileSize) === newCol && 
+                     Math.floor(this.monster.y / tileSize) === newRow) {
+              // Blocked move: Monster is occupying the target cell.
           } else {
               let targetX = newCol * tileSize + tileSize / 2;
               let targetY = newRow * tileSize + tileSize / 2;
