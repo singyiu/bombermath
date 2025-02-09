@@ -8,6 +8,8 @@ class GameScene extends Phaser.Scene {
     super({ key: 'GameScene' });
     this.gameLevel = 1; // Added gameLevel variable with default value 1.
     this.successCnt = 0; // Added successCnt variable with default value 0.
+    this.monsterLevel = 1;
+    this.monsterMoveDelay = 1000;
   }
 
   preload() {
@@ -139,7 +141,7 @@ class GameScene extends Phaser.Scene {
     
     // Schedule monster movement every 1000ms
     this.monsterTimer = this.time.addEvent({
-      delay: 1000,
+      delay: this.monsterMoveDelay,
       callback: this.moveMonster,
       callbackScope: this,
       loop: true
@@ -356,6 +358,7 @@ class GameScene extends Phaser.Scene {
           this.successCnt += 1;
           // Update the UI text to reflect the new success count.
           this.levelText.setText("Level: " + this.gameLevel + "  Success: " + this.successCnt);
+          this.updateToNextLevelIfNeeded();
           // Spawn a new monster one second after destruction.
           this.time.delayedCall(1000, () => {
             this.spawnMonster();
@@ -423,15 +426,6 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  // Helper method to determine if a number is prime.
-  isPrime(num) {
-    if (num <= 1) return false;
-    for (let i = 2; i <= Math.sqrt(num); i++) {
-      if (num % i === 0) return false;
-    }
-    return true;
-  }
-
   // Generates a random non-prime number.
   generateMonsterValue(level) {
     let rnd = Phaser.Math.Between(1, 9);
@@ -447,9 +441,40 @@ class GameScene extends Phaser.Scene {
     );
     this.monster.setCollideWorldBounds(true);
     this.monster.moving = false;
-    this.monster.value = this.generateMonsterValue(this.gameLevel);
+    this.monster.value = this.generateMonsterValue(this.monsterLevel);
     this.monsterText = this.add.text(this.monster.x, this.monster.y, this.monster.value, { font: '16px Arial', fill: '#ffffff' });
     this.monsterText.setOrigin(0.5);
+  }
+
+  getNextGameLevelSuccessCntTarget(currentLevel) {
+    if (currentLevel === 1) return 3;
+    return currentLevel * 10;
+  }
+
+  // --- New: Helper method to update to the next level if needed ---
+  updateToNextLevelIfNeeded() {
+    let nextGameLevelSuccessCntTarget = this.getNextGameLevelSuccessCntTarget(this.gameLevel);
+    if (this.successCnt >= nextGameLevelSuccessCntTarget) {
+      this.gameLevel += 1;
+      this.levelText.setText("Level: " + this.gameLevel + "  Success: " + this.successCnt);
+
+      this.monsterMoveDelay -= 50;
+      if ((this.gameLevel === 2) || (this.gameLevel === 11) || (this.gameLevel === 21)) {
+        this.monsterLevel += 1;
+        this.monsterMoveDelay = 1000;
+      }
+
+      // Refresh monster timer with the updated move delay
+      if (this.monsterTimer) {
+        this.monsterTimer.remove();
+      }
+      this.monsterTimer = this.time.addEvent({
+        delay: this.monsterMoveDelay,
+        callback: this.moveMonster,
+        callbackScope: this,
+        loop: true
+      });
+    }
   }
 }
 
