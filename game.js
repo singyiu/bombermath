@@ -175,6 +175,8 @@ class GameScene extends Phaser.Scene {
               // Invalid move.
           } else if (this.level[newRow][newCol] !== 0) {
               // Blocked move.
+          } else if (this.bombs.some(b => b.row === newRow && b.col === newCol)) {
+              // Blocked move: There's a bomb in the target cell.
           } else {
               let targetX = newCol * tileSize + tileSize / 2;
               let targetY = newRow * tileSize + tileSize / 2;
@@ -384,6 +386,7 @@ class GameScene extends Phaser.Scene {
       // Check grid boundaries and that the cell is empty (level cell value 0)
       if (newCol < 0 || newCol >= gridCols || newRow < 0 || newRow >= gridRows) continue;
       if (this.level[newRow][newCol] !== 0) continue;
+      if (this.bombs.some(b => b.row === newRow && b.col === newCol)) continue; // New: Skip if bomb is present in target cell.
       chosenMove = move;
       break;
     }
