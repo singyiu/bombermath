@@ -6,6 +6,7 @@ const gridRows = 13;
 class GameScene extends Phaser.Scene {
   constructor() {
     super({ key: 'GameScene' });
+    this.gameLevel = 1; // Added gameLevel variable with default value 1.
   }
 
   preload() {
@@ -13,6 +14,10 @@ class GameScene extends Phaser.Scene {
   }
 
   create() {
+    // Added level text at the top of the game.
+    this.levelText = this.add.text(10, 10, "Level: " + this.gameLevel, { font: '16px Arial', fill: '#ffffff' });
+    this.levelText.setDepth(1000);
+  
     // --- Create custom textures using Phaser Graphics ---
     // Floor texture (light gray)
     this.make.graphics({ x: 0, y: 0, add: false })
@@ -423,12 +428,9 @@ class GameScene extends Phaser.Scene {
   }
 
   // Generates a random non-prime number.
-  generateNonPrime() {
-    let rnd = Phaser.Math.Between(1, 98);
-    if (this.isPrime(rnd)) {
-      return this.generateNonPrime();
-    }
-    return rnd;
+  generateMonsterValue(level) {
+    let rnd = Phaser.Math.Between(1, 9);
+    return (level === 1) ? rnd : rnd * this.generateMonsterValue(level - 1);
   }
 
   // --- New: Helper method to spawn a monster ---
@@ -440,7 +442,7 @@ class GameScene extends Phaser.Scene {
     );
     this.monster.setCollideWorldBounds(true);
     this.monster.moving = false;
-    this.monster.value = this.generateNonPrime();
+    this.monster.value = this.generateMonsterValue(this.gameLevel);
     this.monsterText = this.add.text(this.monster.x, this.monster.y, this.monster.value, { font: '16px Arial', fill: '#ffffff' });
     this.monsterText.setOrigin(0.5);
   }
